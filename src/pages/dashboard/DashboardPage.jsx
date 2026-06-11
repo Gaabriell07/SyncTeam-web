@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge'
 import { 
   LogOut, Plus, Users, LayoutDashboard, CheckSquare, 
-  Settings, HelpCircle, Bell, Search, Beaker, Book, MessageSquare, CheckCircle2, Layers
+  Settings, HelpCircle, Bell, Search, Beaker, Book, MessageSquare, CheckCircle2, Layers, User
 } from 'lucide-react'
 
 const ROLE_LABELS = {
@@ -124,9 +124,9 @@ const DashboardPage = () => {
               <CheckSquare className="w-4 h-4" />
               Tasks
             </button>
-            <button onClick={() => toast.info('Configuración próximamente')} className="w-full flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors">
-              <Settings className="w-4 h-4" />
-              Settings
+            <button onClick={() => navigate('/profile')} className="w-full flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors">
+              <User className="w-4 h-4" />
+              Profile
             </button>
           </nav>
         </div>
@@ -226,7 +226,7 @@ const DashboardPage = () => {
               <button onClick={() => toast.info('Centro de ayuda en construcción')} className="text-slate-500 hover:text-slate-700">
                 <HelpCircle className="w-5 h-5" />
               </button>
-            <Avatar className="w-8 h-8 ml-2 border border-slate-200">
+            <Avatar className="w-8 h-8 ml-2 border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate('/profile')}>
               <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-medium">
                 {user?.name?.charAt(0)}
               </AvatarFallback>
