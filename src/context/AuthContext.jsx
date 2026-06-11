@@ -8,19 +8,29 @@ export const AuthProvider = ({ children }) => {
     return stored ? JSON.parse(stored) : null
   })
 
-  const login = (userData) => {
-    setUser(userData)
-    localStorage.setItem('syncteam_user', JSON.stringify(userData))
+  const [token, setToken] = useState(() => {
+    return localStorage.getItem('syncteam_token') || null
+  })
+
+  const login = (data) => {
+    setUser(data.user || data)
+    if (data.token) {
+      setToken(data.token)
+      localStorage.setItem('syncteam_token', data.token)
+    }
+    localStorage.setItem('syncteam_user', JSON.stringify(data.user || data))
   }
 
   const logout = () => {
     setUser(null)
+    setToken(null)
     localStorage.removeItem('syncteam_user')
+    localStorage.removeItem('syncteam_token')
     localStorage.removeItem('syncteam_workspace')
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, token, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

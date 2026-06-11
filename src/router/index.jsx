@@ -5,6 +5,7 @@ import LoginPage from '../pages/auth/LoginPage'
 import RegisterPage from '../pages/auth/RegisterPage'
 import DashboardPage from '../pages/dashboard/DashboardPage'
 import WorkspacePage from '../pages/workspace/WorkspacePage'
+import JoinWorkspacePage from '../pages/workspace/JoinWorkspacePage'
 import TasksPage from '../pages/tasks/TasksPage'
 
 const ProtectedRoute = ({ children }) => {
@@ -27,6 +28,7 @@ const AppRouter = () => {
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/workspace/:id" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>} />
         <Route path="/workspace/:id/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
+        <Route path="/invite/:code" element={<ProtectedRoute><JoinWorkspacePage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

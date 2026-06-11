@@ -1,28 +1,55 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { createWorkspace, joinWorkspace } from '../../services/workspaceService'
+import api from '../../services/api'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog'
+import { Avatar, AvatarFallback } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge'
-import { LogOut, Plus, Users } from 'lucide-react'
+import { 
+  LogOut, Plus, Users, LayoutDashboard, CheckSquare, 
+  Settings, HelpCircle, Bell, Search, Beaker, Book, MessageSquare, CheckCircle2, Layers
+} from 'lucide-react'
+
+const ROLE_LABELS = {
+  LEADER: 'LÍDER',
+  DEVELOPER: 'DEVELOPER',
+  DESIGNER: 'DESIGNER',
+  TESTER: 'TESTER'
+}
 
 const DashboardPage = () => {
   const { user, logout } = useAuth()
   const { selectWorkspace } = useWorkspace()
   const navigate = useNavigate()
 
+  const [workspaces, setWorkspaces] = useState([])
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [role, setRole] = useState('DEVELOPER')
   const [loading, setLoading] = useState(false)
   const [openCreate, setOpenCreate] = useState(false)
   const [openJoin, setOpenJoin] = useState(false)
+
+  useEffect(() => {
+    fetchUserData()
+  }, [])
+
+  const fetchUserData = async () => {
+    try {
+      const res = await api.get(`/api/users/${user.id}`)
+      if (res.data && res.data.memberships) {
+        setWorkspaces(res.data.memberships)
+      }
+    } catch (error) {
+      console.error('Error fetching user data', error)
+    }
+  }
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName) return toast.error('Ingresa un nombre')
@@ -66,116 +93,277 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <nav className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">SyncTeam</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-slate-400 text-sm">{user?.name}</span>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4" />
-          </Button>
-        </div>
-      </nav>
+    <div className="min-h-screen flex bg-[#F8FAFC]">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between hidden md:flex">
+        <div>
+          {/* Logo */}
+          <div className="p-6">
+            <div className="flex items-center gap-2">
+              <div className="bg-slate-900 p-1.5 rounded-md">
+                <Layers className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-bold text-slate-900 leading-tight">SyncTeam</h1>
+                <p className="text-[10px] text-slate-500 font-medium">Academic Workspace</p>
+              </div>
+            </div>
+          </div>
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="mb-10">
-          <h2 className="text-3xl font-bold">Bienvenido, {user?.name}</h2>
-          <p className="text-slate-400 mt-1">Crea o únete a un workspace para comenzar</p>
+          {/* Navigation */}
+          <nav className="px-4 space-y-1">
+            <button onClick={() => toast.info('Estás en el Dashboard viendo tus equipos')} className="w-full flex items-center gap-3 px-3 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm">
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
+            </button>
+            <button onClick={() => toast.info('Selecciona un equipo para ver sus detalles')} className="w-full flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors">
+              <Users className="w-4 h-4" />
+              Teams
+            </button>
+            <button onClick={() => toast.info('Selecciona un equipo para ver sus tareas')} className="w-full flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors">
+              <CheckSquare className="w-4 h-4" />
+              Tasks
+            </button>
+            <button onClick={() => toast.info('Configuración próximamente')} className="w-full flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors">
+              <Settings className="w-4 h-4" />
+              Settings
+            </button>
+          </nav>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-            <DialogTrigger asChild>
-              <Card className="bg-slate-900 border-slate-800 cursor-pointer hover:border-slate-600 transition-colors">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-500/10 rounded-lg">
-                      <Plus className="w-5 h-5 text-blue-400" />
+        {/* Bottom Sidebar */}
+        <div className="p-4 space-y-2">
+            <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+              <DialogTrigger asChild>
+                <Button className="w-full bg-black hover:bg-slate-800 text-white justify-start mb-4 h-10">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Project
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-white border-slate-200 text-slate-900">
+                <DialogHeader>
+                  <DialogTitle>Nuevo workspace</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-2">
+                  <div className="space-y-2">
+                    <Label className="text-slate-700">Nombre del proyecto</Label>
+                    <Input
+                      placeholder="Ej: Proyecto Final BD"
+                      value={newWorkspaceName}
+                      onChange={(e) => setNewWorkspaceName(e.target.value)}
+                      className="bg-white border-slate-200 text-slate-900"
+                    />
+                  </div>
+                  <Button className="w-full bg-[#0F172A] hover:bg-slate-800 text-white" onClick={handleCreateWorkspace} disabled={loading}>
+                    {loading ? 'Creando...' : 'Crear workspace'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <button onClick={() => toast.info('Centro de ayuda en construcción')} className="w-full flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors">
+              <HelpCircle className="w-4 h-4" />
+              Help
+            </button>
+            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors">
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col h-screen overflow-hidden">
+          {/* Top Header */}
+          <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-end shrink-0">
+            <div className="flex items-center gap-4">
+              <Button onClick={() => setOpenCreate(true)} className="bg-blue-600 hover:bg-blue-700 text-white h-9 px-4 rounded-full font-medium text-sm">
+                Create New
+              </Button>
+              <Dialog open={openJoin} onOpenChange={setOpenJoin}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="h-9 px-4 rounded-full font-medium text-sm border-slate-200 text-slate-700">
+                    Join Workspace
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white border-slate-200 text-slate-900">
+                  <DialogHeader>
+                    <DialogTitle>Unirse a workspace</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-2">
+                    <div className="space-y-2">
+                      <Label className="text-slate-700">Código de invitación</Label>
+                      <Input
+                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value)}
+                        className="bg-white border-slate-200 text-slate-900"
+                      />
                     </div>
-                    <div>
-                      <CardTitle className="text-white">Crear workspace</CardTitle>
-                      <CardDescription className="text-slate-400">
-                        Inicia un nuevo proyecto grupal
-                      </CardDescription>
+                    <div className="space-y-2">
+                      <Label className="text-slate-700">Tu rol</Label>
+                      <select
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        className="w-full bg-white border border-slate-200 text-slate-900 rounded-md px-3 py-2 text-sm"
+                      >
+                        <option value="DEVELOPER">Desarrollador</option>
+                        <option value="DESIGNER">Diseñador</option>
+                        <option value="TESTER">Tester</option>
+                        <option value="LEADER">Líder</option>
+                      </select>
+                    </div>
+                    <Button className="w-full bg-[#0F172A] hover:bg-slate-800 text-white" onClick={handleJoinWorkspace} disabled={loading}>
+                      {loading ? 'Uniéndose...' : 'Unirse'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <button onClick={() => toast.info('No tienes notificaciones nuevas')} className="relative text-slate-500 hover:text-slate-700">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              </button>
+              <button onClick={() => toast.info('Centro de ayuda en construcción')} className="text-slate-500 hover:text-slate-700">
+                <HelpCircle className="w-5 h-5" />
+              </button>
+            <Avatar className="w-8 h-8 ml-2 border border-slate-200">
+              <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-medium">
+                {user?.name?.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </header>
+
+        {/* Dashboard Content */}
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="max-w-5xl mx-auto">
+            
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">¡Hola, {user?.name?.split(' ')[0]}!</h2>
+              <p className="text-slate-500 mt-1">Aquí tienes un resumen de tus equipos académicos activos.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              
+              {/* Workspace Cards */}
+              {workspaces.map((membership, i) => (
+                <div 
+                  key={membership.workspaceId}
+                  onClick={() => navigate(`/workspace/${membership.workspaceId}`)}
+                  className="bg-white border border-slate-200 rounded-xl p-5 cursor-pointer hover:shadow-md transition-shadow flex flex-col h-56"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 text-slate-700">
+                      {i % 2 === 0 ? <Beaker className="w-5 h-5" /> : <Book className="w-5 h-5" />}
+                    </div>
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 font-semibold border border-blue-100">
+                      {ROLE_LABELS[membership.role] || 'MIEMBRO'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg text-slate-900 mb-1">{membership.workspace.name}</h3>
+                    <p className="text-sm text-slate-500 line-clamp-2">
+                      Espacio de trabajo para coordinar el proyecto {membership.workspace.name}. Gestiona tareas y horarios aquí.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                    <div className="flex -space-x-2">
+                      {membership.workspace.members?.slice(0,3).map(m => (
+                        <Avatar key={m.id} className="w-7 h-7 border-2 border-white">
+                          <AvatarFallback className="bg-slate-200 text-slate-700 text-[10px]">
+                            {m.user?.name?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                      ))}
+                      {membership.workspace.members?.length > 3 && (
+                        <div className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] text-slate-600 font-medium z-10">
+                          +{membership.workspace.members.length - 3}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-400 text-xs font-medium">
+                      {i % 2 === 0 ? <CheckCircle2 className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />}
+                      <span>{membership.workspace.members?.length}</span>
                     </div>
                   </div>
-                </CardHeader>
-              </Card>
-            </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-slate-800 text-white">
-              <DialogHeader>
-                <DialogTitle>Nuevo workspace</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-2">
-                <div className="space-y-2">
-                  <Label className="text-slate-300">Nombre del proyecto</Label>
-                  <Input
-                    placeholder="Ej: Proyecto Final BD"
-                    value={newWorkspaceName}
-                    onChange={(e) => setNewWorkspaceName(e.target.value)}
-                    className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                  />
                 </div>
-                <Button className="w-full" onClick={handleCreateWorkspace} disabled={loading}>
-                  {loading ? 'Creando...' : 'Crear workspace'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              ))}
 
-          <Dialog open={openJoin} onOpenChange={setOpenJoin}>
-            <DialogTrigger asChild>
-              <Card className="bg-slate-900 border-slate-800 cursor-pointer hover:border-slate-600 transition-colors">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-500/10 rounded-lg">
-                      <Users className="w-5 h-5 text-green-400" />
+              {/* Create New Card */}
+              <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+                <DialogTrigger asChild>
+                  <div className="border-2 border-dashed border-slate-200 rounded-xl p-5 cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition-colors flex flex-col items-center justify-center h-56 text-center">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 mb-3">
+                      <Plus className="w-5 h-5" />
                     </div>
-                    <div>
-                      <CardTitle className="text-white">Unirse a workspace</CardTitle>
-                      <CardDescription className="text-slate-400">
-                        Ingresa con un código de invitación
-                      </CardDescription>
-                    </div>
+                    <h3 className="font-semibold text-slate-900 mb-1">Nuevo Espacio</h3>
+                    <p className="text-sm text-slate-500">Crear desde cero o plantilla</p>
                   </div>
-                </CardHeader>
-              </Card>
-            </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-slate-800 text-white">
-              <DialogHeader>
-                <DialogTitle>Unirse a workspace</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-2">
-                <div className="space-y-2">
-                  <Label className="text-slate-300">Código de invitación</Label>
-                  <Input
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-slate-300">Tu rol</Label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="DEVELOPER">Desarrollador</option>
-                    <option value="DESIGNER">Diseñador</option>
-                    <option value="TESTER">Tester</option>
-                    <option value="LEADER">Líder</option>
-                  </select>
-                </div>
-                <Button className="w-full" onClick={handleJoinWorkspace} disabled={loading}>
-                  {loading ? 'Uniéndose...' : 'Unirse'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+                </DialogTrigger>
+                {/* Create Workspace Dialog Content */}
+                <DialogContent className="bg-white border-slate-200 text-slate-900">
+                  <DialogHeader>
+                    <DialogTitle>Nuevo workspace</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-2">
+                    <div className="space-y-2">
+                      <Label className="text-slate-700">Nombre del proyecto</Label>
+                      <Input
+                        placeholder="Ej: Proyecto Final BD"
+                        value={newWorkspaceName}
+                        onChange={(e) => setNewWorkspaceName(e.target.value)}
+                        className="bg-white border-slate-200 text-slate-900"
+                      />
+                    </div>
+                    <Button className="w-full bg-[#0F172A] hover:bg-slate-800 text-white" onClick={handleCreateWorkspace} disabled={loading}>
+                      {loading ? 'Creando...' : 'Crear workspace'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+            </div>
+          </div>
         </div>
       </main>
+
+      {/* Join Workspace Dialog Content (attached to Top Header button) */}
+      <Dialog open={openJoin} onOpenChange={setOpenJoin}>
+        <DialogContent className="bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <DialogTitle>Unirse a workspace</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label className="text-slate-700">Código de invitación</Label>
+              <Input
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                className="bg-white border-slate-200 text-slate-900"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Tu rol</Label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full bg-white border border-slate-200 text-slate-900 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="DEVELOPER">Desarrollador</option>
+                <option value="DESIGNER">Diseñador</option>
+                <option value="TESTER">Tester</option>
+                <option value="LEADER">Líder</option>
+              </select>
+            </div>
+            <Button className="w-full bg-[#0F172A] hover:bg-slate-800 text-white" onClick={handleJoinWorkspace} disabled={loading}>
+              {loading ? 'Uniéndose...' : 'Unirse'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
