@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../context/AuthContext'
-import { getWorkspace, toggleMemberStatus } from '../../services/workspaceService'
+import { getWorkspace, toggleMemberStatus, updateMemberRole } from '../../services/workspaceService'
 import { saveAvailability, getWorkspaceAvailability } from '../../services/availabilityService'
 import { runMatcher } from '../../services/matcherService'
 import { Button } from '../../components/ui/button'
@@ -22,7 +22,8 @@ const ROLE_LABELS = {
   LEADER: 'Líder',
   DEVELOPER: 'Desarrollador',
   DESIGNER: 'Diseñador',
-  TESTER: 'Tester'
+  TESTER: 'Tester',
+  MEMBER: 'Miembro'
 }
 
 const WorkspacePage = () => {
@@ -130,6 +131,21 @@ const WorkspacePage = () => {
       toast.success(`Miembro ${!isActive ? 'activado' : 'desactivado'}`)
     } catch {
       toast.error('Error al actualizar estado del miembro')
+    }
+  }
+
+  const handleUpdateMemberRole = async (memberId, userId, newRole) => {
+    try {
+      await updateMemberRole(id, userId, newRole)
+      setWorkspace(prev => ({
+        ...prev,
+        members: prev.members.map(m => 
+          m.userId === userId ? { ...m, role: newRole } : m
+        )
+      }))
+      toast.success('Rol actualizado correctamente')
+    } catch {
+      toast.error('Error al actualizar el rol')
     }
   }
 
@@ -497,16 +513,18 @@ const WorkspacePage = () => {
                     <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Miembros del Equipo</h2>
                     <p className="text-slate-500">Gestiona los accesos y roles de tu equipo de investigación.</p>
                   </div>
-                  <Button 
-                    onClick={copyInviteCode} 
-                    variant="outline" 
-                    className="border-slate-200 text-slate-700 bg-white hover:bg-slate-50 h-10 px-5 shadow-sm font-medium"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                    Copiar enlace de invitación
-                  </Button>
+                  {isLeader && (
+                    <Button 
+                      onClick={copyInviteCode} 
+                      variant="outline" 
+                      className="border-slate-200 text-slate-700 bg-white hover:bg-slate-50 h-10 px-5 shadow-sm font-medium"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      Copiar enlace de invitación
+                    </Button>
+                  )}
                 </div>
 
                 {/* Table Card */}
@@ -545,9 +563,23 @@ const WorkspacePage = () => {
                                 {member.user?.email}
                               </td>
                               <td className="px-6 py-4">
-                                <Badge variant="outline" className={`border-transparent font-medium px-3 py-1 text-xs rounded-full ${badgeColor}`}>
-                                  {ROLE_LABELS[member.role] || member.role}
-                                </Badge>
+                                {isLeader && member.userId !== user?.id ? (
+                                  <select
+                                    value={member.role}
+                                    onChange={(e) => handleUpdateMemberRole(member.id, member.userId, e.target.value)}
+                                    className={`border border-slate-200 text-xs rounded-full px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer font-medium ${badgeColor}`}
+                                  >
+                                    <option value="MEMBER">Miembro</option>
+                                    <option value="DEVELOPER">Desarrollador</option>
+                                    <option value="DESIGNER">Diseñador</option>
+                                    <option value="TESTER">Tester</option>
+                                    <option value="LEADER">Líder</option>
+                                  </select>
+                                ) : (
+                                  <Badge variant="outline" className={`border-transparent font-medium px-3 py-1 text-xs rounded-full ${badgeColor}`}>
+                                    {ROLE_LABELS[member.role] || member.role}
+                                  </Badge>
+                                )}
                               </td>
                               <td className="px-6 py-4">
                                 <Badge variant="outline" className={`border-transparent font-medium px-3 py-1 text-xs rounded-full ${member.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-500'}`}>

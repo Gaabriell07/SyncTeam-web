@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useAuth } from '../../context/AuthContext'
 import { getWorkspace } from '../../services/workspaceService'
 import { createTask, getWorkspaceTasks, updateTaskStatus, assignTask } from '../../services/taskService'
+import { socket } from '../../services/socket'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
@@ -47,6 +48,29 @@ const TasksPage = () => {
 
   useEffect(() => {
     fetchData()
+
+    socket.connect()
+    socket.emit('joinWorkspace', id)
+
+    const handleTaskUpdated = (updatedTask) => {
+      setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t))
+    }
+
+    const handleTaskCreated = (newTask) => {
+      setTasks(prev => {
+        if (prev.find(t => t.id === newTask.id)) return prev
+        return [...prev, newTask]
+      })
+    }
+
+    socket.on('taskUpdated', handleTaskUpdated)
+    socket.on('taskCreated', handleTaskCreated)
+
+    return () => {
+      socket.off('taskUpdated', handleTaskUpdated)
+      socket.off('taskCreated', handleTaskCreated)
+      socket.disconnect()
+    }
   }, [id])
 
   const fetchData = async () => {
