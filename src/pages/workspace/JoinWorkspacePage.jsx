@@ -18,8 +18,12 @@ const JoinWorkspacePage = () => {
     setLoading(true)
     try {
       const res = await joinWorkspace({ inviteCode: code, userId: user.id })
-      toast.success('Te has unido al equipo')
-      navigate(`/workspace/${res.data.id}`)
+      toast.success('Te has unido al equipo exitosamente')
+      if (res.data && res.data.id) {
+        navigate(`/workspace/${res.data.id}`)
+      } else {
+        navigate('/dashboard')
+      }
     } catch (error) {
       if (error.response?.status === 409) {
         toast.error('Ya eres miembro de este equipo')
@@ -42,12 +46,12 @@ const JoinWorkspacePage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex gap-3 pt-4">
-            <Button variant="outline" className="w-full" onClick={() => navigate('/dashboard')}>
-              Cancelar
+          <div className="flex flex-col gap-3 pt-4">
+            <Button className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white" onClick={handleJoin} disabled={loading}>
+              {loading ? 'Uniéndose...' : 'Aceptar Invitación'}
             </Button>
-            <Button className="w-full" onClick={handleJoin} disabled={loading}>
-              {loading ? 'Uniéndose...' : 'Unirme ahora'}
+            <Button variant="outline" className="w-full h-12 text-base font-medium border-slate-700 text-slate-300 hover:text-slate-900 hover:bg-slate-50" onClick={() => navigate('/dashboard')}>
+              Cancelar
             </Button>
           </div>
         </CardContent>

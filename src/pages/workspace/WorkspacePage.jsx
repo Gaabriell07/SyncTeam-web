@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../context/AuthContext'
-import { getWorkspace, toggleMemberStatus, updateMemberRole } from '../../services/workspaceService'
+import { getWorkspace, toggleMemberStatus, updateMemberRole, deleteWorkspace } from '../../services/workspaceService'
 import { saveAvailability, getWorkspaceAvailability } from '../../services/availabilityService'
 import { runMatcher } from '../../services/matcherService'
 import { Button } from '../../components/ui/button'
@@ -42,6 +42,16 @@ const WorkspacePage = () => {
     fetchWorkspace()
     fetchMyAvailability()
   }, [id])
+
+  useEffect(() => {
+    if (workspace && user) {
+      const member = workspace.members.find(m => m.userId === user.id)
+      if (!member || member.isActive === false) {
+        toast.error('No tienes acceso a este proyecto o has sido desactivado')
+        navigate('/dashboard')
+      }
+    }
+  }, [workspace, user, navigate])
 
   const fetchWorkspace = async () => {
     try {
@@ -149,6 +159,18 @@ const WorkspacePage = () => {
     }
   }
 
+  const handleDeleteWorkspace = async () => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.')) {
+      try {
+        await deleteWorkspace(id)
+        toast.success('Proyecto eliminado exitosamente')
+        navigate('/dashboard')
+      } catch (error) {
+        toast.error('Error al eliminar el proyecto')
+      }
+    }
+  }
+
   const isLeader = workspace?.members?.find(m => m.userId === user?.id)?.role === 'LEADER'
 
   return (
@@ -246,10 +268,23 @@ const WorkspacePage = () => {
             {/* Title & Settings Button */}
             <div className="flex items-end justify-between mb-8">
               <h1 className="text-4xl font-bold text-slate-900 tracking-tight font-serif">{workspace?.name}</h1>
-              <Button onClick={() => toast.info('Configuración del equipo en desarrollo')} variant="outline" className="border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 h-9 font-medium shadow-sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Team Settings
-              </Button>
+              <div className="flex gap-3">
+                {isLeader && (
+                  <Button 
+                    onClick={copyInviteCode} 
+                    className="bg-blue-600 hover:bg-blue-700 text-white h-9 font-medium shadow-sm"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    Invitar al Equipo
+                  </Button>
+                )}
+                <Button onClick={() => toast.info('Configuración del equipo en desarrollo')} variant="outline" className="border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 h-9 font-medium shadow-sm">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Team Settings
+                </Button>
+              </div>
             </div>
 
             {/* Tabs Navigation */}
@@ -284,6 +319,18 @@ const WorkspacePage = () => {
               >
                 Miembros
               </button>
+              {isLeader && (
+                <button 
+                  onClick={() => setActiveTab('ajustes')}
+                  className={`pb-3 text-sm font-bold transition-colors border-b-2 ${
+                    activeTab === 'ajustes' 
+                      ? 'border-blue-600 text-blue-600' 
+                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Ajustes
+                </button>
+              )}
             </div>
 
             {/* Tab Content: Horario */}
@@ -515,14 +562,11 @@ const WorkspacePage = () => {
                   </div>
                   {isLeader && (
                     <Button 
-                      onClick={copyInviteCode} 
-                      variant="outline" 
-                      className="border-slate-200 text-slate-700 bg-white hover:bg-slate-50 h-10 px-5 shadow-sm font-medium"
+                      onClick={copyInviteCode}
+                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
                     >
-                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                      </svg>
-                      Copiar enlace de invitación
+                      <Plus className="w-4 h-4 mr-2" />
+                      Generar Enlace
                     </Button>
                   )}
                 </div>
@@ -625,6 +669,31 @@ const WorkspacePage = () => {
                       </button>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab Content: Ajustes */}
+            {activeTab === 'ajustes' && isLeader && (
+              <div className="space-y-10">
+                <div className="flex items-start justify-between pb-6 border-b border-slate-200">
+                  <div>
+                    <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Ajustes del Proyecto</h2>
+                    <p className="text-slate-500">Configura las opciones avanzadas de tu espacio de trabajo.</p>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                  <h3 className="text-lg font-bold text-red-900 mb-2">Zona de Peligro</h3>
+                  <p className="text-sm text-red-700 mb-4">
+                    Una vez que elimines un proyecto, no hay vuelta atrás. Por favor, asegúrate de estar seguro.
+                  </p>
+                  <Button 
+                    onClick={handleDeleteWorkspace}
+                    className="bg-red-600 hover:bg-red-700 text-white font-medium"
+                  >
+                    Eliminar Proyecto
+                  </Button>
                 </div>
               </div>
             )}

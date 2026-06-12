@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../context/AuthContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
-import { createWorkspace, joinWorkspace } from '../../services/workspaceService'
+import { createWorkspace, joinWorkspace, toggleMemberStatus } from '../../services/workspaceService'
 import api from '../../services/api'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -31,7 +31,6 @@ const DashboardPage = () => {
   const [workspaces, setWorkspaces] = useState([])
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
-  const [role, setRole] = useState('DEVELOPER')
   const [loading, setLoading] = useState(false)
   const [openCreate, setOpenCreate] = useState(false)
   const [openJoin, setOpenJoin] = useState(false)
@@ -44,7 +43,7 @@ const DashboardPage = () => {
     try {
       const res = await api.get(`/api/users/${user.id}`)
       if (res.data && res.data.memberships) {
-        setWorkspaces(res.data.memberships)
+        setWorkspaces(res.data.memberships.filter(m => m.isActive !== false))
       }
     } catch (error) {
       console.error('Error fetching user data', error)
@@ -71,7 +70,7 @@ const DashboardPage = () => {
     if (!inviteCode) return toast.error('Ingresa el código de invitación')
     setLoading(true)
     try {
-      const res = await joinWorkspace({ inviteCode, userId: user.id, role })
+      const res = await joinWorkspace({ inviteCode, userId: user.id })
       selectWorkspace(res.data)
       toast.success('Te uniste al workspace')
       navigate(`/workspace/${res.data.id}`)
@@ -84,6 +83,18 @@ const DashboardPage = () => {
     } finally {
       setLoading(false)
       setOpenJoin(false)
+    }
+  }
+
+  const handleLeaveWorkspace = async (e, workspaceId) => {
+    e.stopPropagation()
+    if (!window.confirm('¿Seguro que quieres abandonar este proyecto?')) return
+    try {
+      await toggleMemberStatus(workspaceId, user.id, false)
+      toast.success('Has abandonado el proyecto')
+      fetchUserData()
+    } catch (err) {
+      toast.error('Error al abandonar el proyecto')
     }
   }
 
@@ -200,19 +211,6 @@ const DashboardPage = () => {
                         className="bg-white border-slate-200 text-slate-900"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-slate-700">Tu rol</Label>
-                      <select
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 rounded-md px-3 py-2 text-sm"
-                      >
-                        <option value="DEVELOPER">Desarrollador</option>
-                        <option value="DESIGNER">Diseñador</option>
-                        <option value="TESTER">Tester</option>
-                        <option value="LEADER">Líder</option>
-                      </select>
-                    </div>
                     <Button className="w-full bg-[#0F172A] hover:bg-slate-800 text-white" onClick={handleJoinWorkspace} disabled={loading}>
                       {loading ? 'Uniéndose...' : 'Unirse'}
                     </Button>
@@ -256,9 +254,18 @@ const DashboardPage = () => {
                     <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 text-slate-700">
                       {i % 2 === 0 ? <Beaker className="w-5 h-5" /> : <Book className="w-5 h-5" />}
                     </div>
-                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 font-semibold border border-blue-100">
-                      {ROLE_LABELS[membership.role] || 'MIEMBRO'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-blue-50 text-blue-700 font-semibold border border-blue-100">
+                        {ROLE_LABELS[membership.role] || 'MIEMBRO'}
+                      </Badge>
+                      <button 
+                        onClick={(e) => handleLeaveWorkspace(e, membership.workspaceId)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                        title="Abandonar proyecto"
+                      >
+                        <LogOut className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="flex-1">
@@ -328,42 +335,6 @@ const DashboardPage = () => {
           </div>
         </div>
       </main>
-
-      {/* Join Workspace Dialog Content (attached to Top Header button) */}
-      <Dialog open={openJoin} onOpenChange={setOpenJoin}>
-        <DialogContent className="bg-white border-slate-200 text-slate-900">
-          <DialogHeader>
-            <DialogTitle>Unirse a workspace</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div className="space-y-2">
-              <Label className="text-slate-700">Código de invitación</Label>
-              <Input
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
-                className="bg-white border-slate-200 text-slate-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-slate-700">Tu rol</Label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full bg-white border border-slate-200 text-slate-900 rounded-md px-3 py-2 text-sm"
-              >
-                <option value="DEVELOPER">Desarrollador</option>
-                <option value="DESIGNER">Diseñador</option>
-                <option value="TESTER">Tester</option>
-                <option value="LEADER">Líder</option>
-              </select>
-            </div>
-            <Button className="w-full bg-[#0F172A] hover:bg-slate-800 text-white" onClick={handleJoinWorkspace} disabled={loading}>
-              {loading ? 'Uniéndose...' : 'Unirse'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

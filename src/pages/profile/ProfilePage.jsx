@@ -36,6 +36,16 @@ const ProfilePage = () => {
     }
   }
 
+  // Safely converts activity.details to a displayable string
+  const renderDetails = (details) => {
+    if (!details) return null
+    if (typeof details === 'string') return details
+    // If it's an object, prefer a 'message' field, otherwise format it nicely
+    if (details.message) return details.message
+    if (details.title) return `Tarea: "${details.title}"`
+    return JSON.stringify(details)
+  }
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -147,7 +157,7 @@ const ProfilePage = () => {
                           </time>
                         </div>
                         <div className="text-slate-600 text-sm">
-                          {activity.details}
+                          {renderDetails(activity.details)}
                         </div>
                       </div>
                     </div>

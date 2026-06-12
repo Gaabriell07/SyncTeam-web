@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../context/AuthContext'
 import { getWorkspace } from '../../services/workspaceService'
-import { createTask, getWorkspaceTasks, updateTaskStatus, assignTask } from '../../services/taskService'
+import { createTask, getWorkspaceTasks, updateTaskStatus, assignTask, editTask, deleteTask } from '../../services/taskService'
 import { socket } from '../../services/socket'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -13,8 +13,10 @@ import { Badge } from '../../components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog'
 import { 
   LogOut, Plus, Users, LayoutDashboard, CheckSquare, 
-  Settings, HelpCircle, Layers, MoreHorizontal, ArrowRight
+  Settings, HelpCircle, Layers, MoreHorizontal, ArrowRight,
+  Trash2, Edit2
 } from 'lucide-react'
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 
 const STATUS_LABELS = {
   TODO: 'Por hacer',
@@ -44,7 +46,9 @@ const TasksPage = () => {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
   const [openCreate, setOpenCreate] = useState(false)
+  const [openEdit, setOpenEdit] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', assigneeId: '', dueDate: '' })
+  const [editForm, setEditForm] = useState({ id: '', title: '', description: '', dueDate: '' })
 
   useEffect(() => {
     fetchData()
@@ -62,13 +66,25 @@ const TasksPage = () => {
         return [...prev, newTask]
       })
     }
+    
+    const handleTaskDeleted = (deletedTask) => {
+      setTasks(prev => prev.filter(t => t.id !== deletedTask.id))
+    }
+
+    const handleTaskEdited = (editedTask) => {
+      setTasks(prev => prev.map(t => t.id === editedTask.id ? editedTask : t))
+    }
 
     socket.on('taskUpdated', handleTaskUpdated)
     socket.on('taskCreated', handleTaskCreated)
+    socket.on('taskDeleted', handleTaskDeleted)
+    socket.on('taskEdited', handleTaskEdited)
 
     return () => {
       socket.off('taskUpdated', handleTaskUpdated)
       socket.off('taskCreated', handleTaskCreated)
+      socket.off('taskDeleted', handleTaskDeleted)
+      socket.off('taskEdited', handleTaskEdited)
       socket.disconnect()
     }
   }, [id])
@@ -89,8 +105,16 @@ const TasksPage = () => {
 
   const userRole = members.find(m => m.userId === user?.id)?.role
 
+  const getTodayMin = () => {
+    const now = new Date()
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  }
+
   const handleCreateTask = async () => {
     if (!form.title) return toast.error('Ingresa un título')
+    if (form.dueDate && new Date(form.dueDate) < new Date()) {
+      return toast.error('La fecha límite no puede ser en el pasado')
+    }
     setLoading(true)
     try {
       await createTask({
@@ -109,6 +133,49 @@ const TasksPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleEditTask = async () => {
+    if (!editForm.title) return toast.error('Ingresa un título')
+    if (editForm.dueDate && new Date(editForm.dueDate) < new Date()) {
+      return toast.error('La fecha límite no puede ser en el pasado')
+    }
+    setLoading(true)
+    try {
+      await editTask(editForm.id, {
+        title: editForm.title,
+        description: editForm.description,
+        dueDate: editForm.dueDate || null
+      })
+      toast.success('Tarea actualizada')
+      setOpenEdit(false)
+      fetchData()
+    } catch {
+      toast.error('Error al actualizar la tarea')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('¿Seguro que deseas eliminar esta tarea?')) return
+    try {
+      await deleteTask(taskId)
+      toast.success('Tarea eliminada')
+      fetchData()
+    } catch {
+      toast.error('Error al eliminar la tarea')
+    }
+  }
+
+  const openEditModal = (task) => {
+    setEditForm({
+      id: task.id,
+      title: task.title,
+      description: task.description || '',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : ''
+    })
+    setOpenEdit(true)
   }
 
   const handleUpdateStatus = async (taskId, currentStatus) => {
@@ -135,6 +202,27 @@ const TasksPage = () => {
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const onDragEnd = async (result) => {
+    if (!result.destination) return
+
+    const { source, destination, draggableId } = result
+
+    if (source.droppableId !== destination.droppableId) {
+      // Optimistic update locally
+      const task = tasks.find(t => t.id === draggableId)
+      if (task) {
+        setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: destination.droppableId } : t))
+        try {
+          await updateTaskStatus(draggableId, destination.droppableId)
+          fetchData()
+        } catch {
+          toast.error('Error al actualizar el estado')
+          fetchData() // Revert local change on error
+        }
+      }
+    }
   }
 
   const tasksByStatus = {
@@ -234,89 +322,120 @@ const TasksPage = () => {
             </div>
 
             {/* Kanban Board */}
-            <div className="flex gap-6 flex-1 overflow-x-auto pb-4">
-              {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
-                <div key={status} className="bg-slate-50 rounded-2xl p-4 w-[340px] shrink-0 flex flex-col h-max max-h-full">
-                  
-                  {/* Column Header */}
-                  <div className="flex items-center justify-between mb-4 px-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-slate-900">{STATUS_LABELS[status]}</h3>
-                      <span className="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">
-                        {statusTasks.length}
-                      </span>
+            <DragDropContext onDragEnd={onDragEnd}>
+              <div className="flex gap-6 flex-1 overflow-x-auto pb-4">
+                {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
+                  <div key={status} className="bg-slate-50 rounded-2xl p-4 w-[340px] shrink-0 flex flex-col h-max max-h-full">
+                    
+                    {/* Column Header */}
+                    <div className="flex items-center justify-between mb-4 px-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-slate-900">{STATUS_LABELS[status]}</h3>
+                        <span className="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                          {statusTasks.length}
+                        </span>
+                      </div>
+                      <button className="text-slate-400 hover:text-slate-600">
+                        <MoreHorizontal className="w-5 h-5" />
+                      </button>
                     </div>
-                    <button className="text-slate-400 hover:text-slate-600">
-                      <MoreHorizontal className="w-5 h-5" />
-                    </button>
-                  </div>
 
-                  {/* Tasks List */}
-                  <div className="space-y-3 overflow-y-auto pr-1 custom-scrollbar flex-1">
-                    {statusTasks.map(task => {
-                      const assignee = members.find(m => m.userId === task.assigneeId)?.user
-                      
-                      return (
-                        <div key={task.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group">
-                          <div className="mb-3">
-                            <h4 className={`font-semibold text-sm ${status === 'DONE' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                              {task.title}
-                            </h4>
-                            {task.description && (
-                              <p className={`text-xs mt-1.5 line-clamp-2 ${status === 'DONE' ? 'text-slate-300' : 'text-slate-500'}`}>
-                                {task.description}
-                              </p>
-                            )}
-                            {task.dueDate && (
-                              <p className={`text-[10px] mt-2 font-medium ${new Date(task.dueDate) < new Date() && status !== 'DONE' ? 'text-red-500' : 'text-slate-400'}`}>
-                                Fecha límite: {new Date(task.dueDate).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center justify-between mt-4">
-                            {/* Assignee / Select */}
-                            <div className="relative">
-                              <select
-                                value={task.assigneeId || ''}
-                                onChange={(e) => handleAssign(task.id, e.target.value)}
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                title="Cambiar asignado"
-                              >
-                                <option value="">Sin asignar</option>
-                                {members.map(m => (
-                                  <option key={m.userId} value={m.userId}>{m.user?.name}</option>
-                                ))}
-                              </select>
-                              <Avatar className="w-6 h-6 border border-slate-200">
-                                <AvatarFallback className="bg-slate-100 text-slate-600 text-[10px] font-medium">
-                                  {assignee ? assignee.name.charAt(0).toUpperCase() : '?'}
-                                </AvatarFallback>
-                              </Avatar>
-                            </div>
+                    {/* Tasks List */}
+                    <Droppable droppableId={status}>
+                      {(provided, snapshot) => (
+                        <div 
+                          {...provided.droppableProps} 
+                          ref={provided.innerRef}
+                          className={`space-y-3 overflow-y-auto pr-1 custom-scrollbar flex-1 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-slate-100 rounded-lg' : ''}`}
+                        >
+                          {statusTasks.map((task, index) => {
+                            const assignee = members.find(m => m.userId === task.assigneeId)?.user
+                            const canEditOrDelete = userRole === 'LEADER' || task.assigneeId === user?.id
+                            
+                            return (
+                              <Draggable key={task.id} draggableId={task.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <div 
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group ${snapshot.isDragging ? 'shadow-lg rotate-2' : ''}`}
+                                  >
+                                    <div className="flex items-start justify-between mb-3">
+                                      <div className="flex-1">
+                                        <h4 className={`font-semibold text-sm ${status === 'DONE' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                          {task.title}
+                                        </h4>
+                                        {task.description && (
+                                          <p className={`text-xs mt-1.5 line-clamp-2 ${status === 'DONE' ? 'text-slate-300' : 'text-slate-500'}`}>
+                                            {task.description}
+                                          </p>
+                                        )}
+                                        {task.dueDate && (
+                                          <p className={`text-[10px] mt-2 font-medium ${new Date(task.dueDate) < new Date() && status !== 'DONE' ? 'text-red-500' : 'text-slate-400'}`}>
+                                            Fecha límite: {new Date(task.dueDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                          </p>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Action Buttons (Edit / Delete) */}
+                                      {canEditOrDelete && (
+                                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button 
+                                            onClick={() => openEditModal(task)}
+                                            className="text-slate-400 hover:text-blue-500 p-1"
+                                            title="Editar tarea"
+                                          >
+                                            <Edit2 className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button 
+                                            onClick={() => handleDeleteTask(task.id)}
+                                            className="text-slate-400 hover:text-red-500 p-1"
+                                            title="Eliminar tarea"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between mt-4">
+                                      {/* Assignee / Select */}
+                                      <div className="relative">
+                                        <select
+                                          value={task.assigneeId || ''}
+                                          onChange={(e) => handleAssign(task.id, e.target.value)}
+                                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                                          title="Cambiar asignado"
+                                        >
+                                          <option value="">Sin asignar</option>
+                                          {members.map(m => (
+                                            <option key={m.userId} value={m.userId}>{m.user?.name}</option>
+                                          ))}
+                                        </select>
+                                        <Avatar className="w-6 h-6 border border-slate-200">
+                                          <AvatarFallback className="bg-slate-100 text-slate-600 text-[10px] font-medium">
+                                            {assignee ? assignee.name.charAt(0).toUpperCase() : '?'}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      </div>
 
-                            {/* Actions / Status Dot */}
-                            <div className="flex items-center gap-2">
-                              {/* Botón oculto para avanzar estado, se muestra al hacer hover */}
-                              { (userRole === 'LEADER' || NEXT_STATUS[task.status] !== 'DONE') && (
-                                <button 
-                                  onClick={() => handleUpdateStatus(task.id, task.status)}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-700 bg-slate-50 rounded-full p-1"
-                                  title={`Mover a ${STATUS_LABELS[NEXT_STATUS[task.status]]}`}
-                                >
-                                  <ArrowRight className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              <div className={`w-2.5 h-2.5 rounded-full ${DOT_COLORS[status]}`}></div>
-                            </div>
-                          </div>
+                                      {/* Status Dot */}
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-2.5 h-2.5 rounded-full ${DOT_COLORS[status]}`}></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            )
+                          })}
+                          {provided.placeholder}
                         </div>
-                      )
-                    })}
-                  </div>
+                      )}
+                    </Droppable>
 
-                  {/* Add Task Button inside Column */}
-                  {userRole === 'LEADER' && (
+                    {/* Add Task Button inside Column */}
                     <Dialog open={openCreate} onOpenChange={setOpenCreate}>
                       <DialogTrigger asChild>
                         <button className="w-full flex items-center justify-center gap-2 py-3 mt-3 text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 rounded-lg text-sm font-medium transition-colors">
@@ -364,7 +483,8 @@ const TasksPage = () => {
                           <div className="space-y-2">
                             <Label className="text-slate-700">Fecha límite (opcional)</Label>
                             <Input
-                              type="date"
+                              type="datetime-local"
+                              min={getTodayMin()}
                               value={form.dueDate}
                               onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                               className="bg-white border-slate-200 text-slate-900"
@@ -376,15 +496,56 @@ const TasksPage = () => {
                         </div>
                       </DialogContent>
                     </Dialog>
-                  )}
-
-                </div>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
+            </DragDropContext>
 
           </div>
         </div>
       </main>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={openEdit} onOpenChange={setOpenEdit}>
+        <DialogContent className="bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <DialogTitle>Editar tarea</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label className="text-slate-700">Título</Label>
+              <Input
+                placeholder="Ej: Diseñar base de datos"
+                value={editForm.title}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                className="bg-white border-slate-200 text-slate-900"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Descripción (opcional)</Label>
+              <Input
+                placeholder="Descripción de la tarea"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                className="bg-white border-slate-200 text-slate-900"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Fecha límite (opcional)</Label>
+              <Input
+                type="datetime-local"
+                min={getTodayMin()}
+                value={editForm.dueDate}
+                onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                className="bg-white border-slate-200 text-slate-900"
+              />
+            </div>
+            <Button className="w-full bg-[#0F172A] hover:bg-slate-800 text-white" onClick={handleEditTask} disabled={loading}>
+              {loading ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
