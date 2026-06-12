@@ -55,6 +55,10 @@ const TasksPage = () => {
 
     socket.connect()
     socket.emit('joinWorkspace', id)
+    // Unirse a la sala personal para recibir notificaciones en tiempo real
+    if (user?.id) {
+      socket.emit('joinUserRoom', user.id)
+    }
 
     const handleTaskUpdated = (updatedTask) => {
       setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t))
@@ -350,7 +354,8 @@ const TasksPage = () => {
                         >
                           {statusTasks.map((task, index) => {
                             const assignee = members.find(m => m.userId === task.assigneeId)?.user
-                            const canEditOrDelete = userRole === 'LEADER' || task.assigneeId === user?.id
+                            const canEdit = userRole === 'LEADER' || task.assigneeId === user?.id
+                            const canDelete = userRole === 'LEADER'
                             
                             return (
                               <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -379,22 +384,26 @@ const TasksPage = () => {
                                       </div>
                                       
                                       {/* Action Buttons (Edit / Delete) */}
-                                      {canEditOrDelete && (
+                                      {(canEdit || canDelete) && (
                                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <button 
-                                            onClick={() => openEditModal(task)}
-                                            className="text-slate-400 hover:text-blue-500 p-1"
-                                            title="Editar tarea"
-                                          >
-                                            <Edit2 className="w-3.5 h-3.5" />
-                                          </button>
-                                          <button 
-                                            onClick={() => handleDeleteTask(task.id)}
-                                            className="text-slate-400 hover:text-red-500 p-1"
-                                            title="Eliminar tarea"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
+                                          {canEdit && (
+                                            <button 
+                                              onClick={() => openEditModal(task)}
+                                              className="text-slate-400 hover:text-blue-500 p-1"
+                                              title="Editar tarea"
+                                            >
+                                              <Edit2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          )}
+                                          {canDelete && (
+                                            <button 
+                                              onClick={() => handleDeleteTask(task.id)}
+                                              className="text-slate-400 hover:text-red-500 p-1"
+                                              title="Eliminar tarea (solo líder)"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          )}
                                         </div>
                                       )}
                                     </div>

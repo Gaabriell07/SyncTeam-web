@@ -13,8 +13,10 @@ import { Avatar, AvatarFallback } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge'
 import { 
   LogOut, Plus, Users, LayoutDashboard, CheckSquare, 
-  Settings, HelpCircle, Bell, Search, Beaker, Book, MessageSquare, CheckCircle2, Layers, User
+  Settings, HelpCircle, Search, Beaker, Book, MessageSquare, CheckCircle2, Layers, User
 } from 'lucide-react'
+import NotificationBell from '../../components/common/NotificationBell'
+import { socket } from '../../services/socket'
 
 const ROLE_LABELS = {
   LEADER: 'LÍDER',
@@ -37,7 +39,15 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchUserData()
-  }, [])
+    // Conectar socket y unirse a la sala personal para notificaciones
+    if (user?.id) {
+      socket.connect()
+      socket.emit('joinUserRoom', user.id)
+    }
+    return () => {
+      socket.off('notification:new')
+    }
+  }, [user?.id])
 
   const fetchUserData = async () => {
     try {
@@ -217,13 +227,7 @@ const DashboardPage = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-              <button onClick={() => toast.info('No tienes notificaciones nuevas')} className="relative text-slate-500 hover:text-slate-700">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-              </button>
-              <button onClick={() => toast.info('Centro de ayuda en construcción')} className="text-slate-500 hover:text-slate-700">
-                <HelpCircle className="w-5 h-5" />
-              </button>
+              <NotificationBell socket={socket} />
             <Avatar className="w-8 h-8 ml-2 border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate('/profile')}>
               <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-medium">
                 {user?.name?.charAt(0)}
