@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Mail, Lock, User as UserIcon, Eye, EyeOff, Layers } from 'lucide-react'
+import capturap from '../../images/capturap.png'
 
 const RegisterPage = () => {
   const [form, setForm] = useState({ name: '', email: '', password: '' })
@@ -43,24 +44,39 @@ const RegisterPage = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Lado izquierdo - Decoración */}
-      <div className="hidden lg:flex lg:w-1/2 bg-slate-50 relative flex-col justify-between p-12 overflow-hidden border-r border-slate-200">
-        {/* Patrón abstracto sutil de fondo */}
-        <div className="absolute top-[-20%] left-[-10%] w-[140%] h-[140%] bg-gradient-to-br from-slate-200/40 via-transparent to-slate-200/20 transform -rotate-12 pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[80%] h-[80%] bg-gradient-to-tl from-slate-200/50 to-transparent rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex items-center gap-2 font-bold text-xl text-slate-900">
-          <Layers className="w-6 h-6 text-slate-800" />
+      {/* Lado izquierdo - Imagen de fondo con overlay */}
+      <div
+        className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 overflow-hidden"
+        style={{
+          backgroundColor: '#0f172a',
+          backgroundImage: `url(${capturap})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        {/* Overlay oscuro general */}
+        <div className="absolute inset-0 bg-slate-900/60" />
+        {/* Degradado fuerte en la parte inferior para que el texto destaque */}
+        <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-slate-900/95 via-slate-900/50 to-transparent" />
+
+        {/* Logo — arriba */}
+        <div className="relative z-10 flex items-center gap-2 font-bold text-xl text-white">
+          <Layers className="w-6 h-6 text-blue-400" />
           <span>SyncTeam</span>
         </div>
 
-        <div className="relative z-10 max-w-md">
-          <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4 tracking-tight">
-            Únete a la Revolución.<br />Coordina Mejor.
-          </h1>
-          <p className="text-slate-500 text-lg leading-relaxed">
-            Registra tu cuenta y descubre la manera más inteligente de gestionar los horarios y tareas de tu equipo académico sin fricción.
-          </p>
+        {/* Texto + Footer — abajo */}
+        <div className="relative z-10 flex flex-col gap-6">
+          <div className="max-w-md">
+            <h1 className="text-4xl font-bold text-white leading-tight mb-3 tracking-tight">
+              Únete a la Revolución.<br />Coordina Mejor.
+            </h1>
+            <p className="text-slate-300 text-base leading-relaxed">
+              Registra tu cuenta y descubre la manera más inteligente de gestionar los horarios y tareas de tu equipo académico sin fricción.
+            </p>
+          </div>
+          <p className="text-slate-500 text-xs">© 2026 SyncTeam · Academic Workspace Platform</p>
         </div>
       </div>
 
@@ -94,14 +110,14 @@ const RegisterPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700 font-medium text-xs">Correo Institucional</Label>
+              <Label htmlFor="email" className="text-slate-700 font-medium text-xs">Correo</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="nombre@universidad.edu"
+                  placeholder="correo@ejemplo.com"
                   value={form.email}
                   onChange={handleChange}
                   className="pl-9 bg-white border-slate-200 text-slate-900 focus:ring-slate-900 focus:border-slate-900"

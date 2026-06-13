@@ -47,8 +47,8 @@ const LoginPage = () => {
         style={{
           backgroundColor: '#0f172a',
           backgroundImage: `url(${capturap})`,
-          backgroundSize: '100% auto',
-          backgroundPosition: 'center top',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
         }}
       >
@@ -92,13 +92,13 @@ const LoginPage = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700 font-medium text-xs">Correo Institucional</Label>
+              <Label htmlFor="email" className="text-slate-700 font-medium text-xs">Correo</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="nombre@universidad.edu"
+                  placeholder="correo@ejemplo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-9 bg-white border-slate-200 text-slate-900 focus:ring-slate-900 focus:border-slate-900"
