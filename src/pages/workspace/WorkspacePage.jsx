@@ -56,8 +56,10 @@ const WorkspacePage = () => {
   const fetchWorkspace = async () => {
     try {
       const res = await getWorkspace(id)
+      console.log("FETCHED WORKSPACE:", res.data)
       setWorkspace(res.data)
-    } catch {
+    } catch (e) {
+      console.error("ERROR FETCHING WORKSPACE:", e)
       toast.error('Error al cargar el workspace')
     }
   }
